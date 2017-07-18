@@ -12,7 +12,11 @@ function result = decode(received, frozen_indices, frozen_bits, channel_type, pa
     xors{i} = NaN(length/(2^(i-1)), 2^(i-1));
   end
   
-  u = NaN(size(received, 1));
+  for i = 1:size(frozen_indices, 1)
+    frozen_indices(i) = reverse_index(frozen_indices(i), log2(length));
+  end
+  
+  u = NaN(size(received, 1), 1);
   for i = 1:size(received, 1)
     [l, likelihoods] = calculate_likelihood(received, likelihoods, xors, 1, i, 1, log2(length) + 1, channel_type, param);
     frozen = find(frozen_indices == i);
@@ -25,9 +29,11 @@ function result = decode(received, frozen_indices, frozen_bits, channel_type, pa
         u(i) = 1;
       end
     end
+    format short g
+    disp([i, l, u(i)]);
     xors = propagate_value(u(i), xors, 1, i, 1, log2(length) + 1); 
   end
-  disp(likelihoods{1})
+  result = bitrevorder(u);
 end
 
 function [likelihood, storage] = calculate_likelihood(received, likelihoods, xors, layer, idx1, idx2, max_depth, channel_type, param)
@@ -39,7 +45,6 @@ function [likelihood, storage] = calculate_likelihood(received, likelihoods, xor
   
   if (layer == max_depth)
     l = get_channel_likelihood(received(reverse_index(idx2, log2(size(received, 1)))), channel_type, param);
-    disp([l, idx1-1, idx2-1])
     likelihood = l;
     likelihoods{layer}(idx1, idx2) = l;
     storage = likelihoods;
@@ -49,12 +54,32 @@ function [likelihood, storage] = calculate_likelihood(received, likelihoods, xor
   [l1, likelihoods] = calculate_likelihood(received, likelihoods, xors, layer+1, (floor((idx1 - 1)/2)) + 1, (2*(idx2 - 1)) + 1, max_depth, channel_type, param);
   [l2, likelihoods] = calculate_likelihood(received, likelihoods, xors, layer+1, (floor((idx1 - 1)/2)) + 1, (2*(idx2 - 1) + 1) + 1, max_depth, channel_type, param);
   if (mod(idx1 - 1, 2) == 0)
-    likelihood = (l1*l2 + 1)/(l1 + l2);
-  else
-    if (xors{layer}(idx1 - 1, idx2) == 0)
-      likelihood = l1*l2;    
+    if (strcmp(channel_type, 'bec'))
+      if ((isinf(l1) && isinf(l2)) || (l1 == 0 && l2 == 0))
+        likelihood = Inf;
+      elseif ((isinf(l1) && l2 == 0) || (l1 == 0 && isinf(l2)))
+        likelihood = 0;
+      else
+        likelihood = 1;
+      end
     else
-      likelihood = l1/l2;
+      likelihood = (l1*l2 + 1)/(l1 + l2);
+    end
+  else
+    if (strcmp(channel_type, 'bec'))
+      if (l2 ~= 1)
+        likelihood = l2;
+      elseif (l1 ~= 1)
+        likelihood = xor(l1, xors{layer}(idx1 - 1, idx2)); 
+      else
+        likelihood = 1;
+      end
+    else
+      if (xors{layer}(idx1 - 1, idx2) == 0)
+        likelihood = l1*l2;    
+      else
+        likelihood = l2/l1;
+      end
     end
   end
   likelihoods{layer}(idx1, idx2) = likelihood;
@@ -64,6 +89,8 @@ end
 function likelihood = get_channel_likelihood(value, channel_type, param)
   if (strcmp(channel_type, 'bsc'))
     likelihood = get_bsc_likelihood(value, param);
+  elseif (strcmp(channel_type, 'bec'))
+    likelihood = get_bec_likelihood(value);
   end
 end
 
@@ -72,6 +99,16 @@ function likelihood = get_bsc_likelihood(value, flip_probability)
     likelihood = (1-flip_probability)/flip_probability; 
   else
     likelihood = flip_probability/(1-flip_probability);
+  end
+end
+
+function likelihood = get_bec_likelihood(value)
+  if (value == 0)
+    likelihood = Inf;
+  elseif (value == 1)
+    likelihood = 0;
+  else
+    likelihood = 1;
   end
 end
 
