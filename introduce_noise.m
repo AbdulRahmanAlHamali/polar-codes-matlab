@@ -3,6 +3,8 @@ function result = introduce_noise(channel_type, message, param)
     result = introduce_bsc_noise(message, param);
   elseif (strcmp(channel_type, 'bec'))
     result = introduce_bec_noise(message, param);
+  elseif (strcmp(channel_type, 'awgn'))
+    result = introduce_awgn_noise(message, param);
   end
 end
 
@@ -28,4 +30,10 @@ function result = introduce_bec_noise(message, flip_probability)
       result(i) = message(i);
     end
   end
+end
+
+function result = introduce_awgn_noise(message, sigma)
+  % First, we transform all 0 to -1, for convention's sake
+  message(message == 0) = -1;
+  result = normrnd(message, sigma);
 end

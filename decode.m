@@ -91,6 +91,8 @@ function likelihood = get_channel_likelihood(value, channel_type, param)
     likelihood = get_bsc_likelihood(value, param);
   elseif (strcmp(channel_type, 'bec'))
     likelihood = get_bec_likelihood(value);
+  elseif (strcmp(channel_type, 'awgn'))
+    likelihood = get_awgn_likelihood(value, param);
   end
 end
 
@@ -110,6 +112,10 @@ function likelihood = get_bec_likelihood(value)
   else
     likelihood = 1;
   end
+end
+
+function likelihood = get_awgn_likelihood(value, sigma)
+  likelihood = exp((-(value+1)^2/(2*sigma^2)))/exp((-(value-1)^2/(2*sigma^2)));
 end
 
 function reversed_index = reverse_index(idx, n)
