@@ -1,11 +1,16 @@
 number_of_tests = 500;
 N = 128;
-frozen_indices = transpose(setdiff(1:128, [48 56 60 62:64 80 88 90:96 102:104 106:112 114:128]));
-K = N - size(frozen_indices, 1);
-frozen_bits = zeros(size(frozen_indices, 1), 1);
+K = 40;
 channel_type = 'awgn';
 param = 0.987;
 list_size = 8;
+
+z = calculate_z_parameters(N, 1000, channel_type, param);
+[s, ind] = sort(z);
+frozen_indices = ind(K+1:N);
+%frozen_indices = transpose(setdiff(1:128, [48 56 60 62:64 80 88 90:96 102:104 106:112 114:128]));
+%K = N - size(frozen_indices, 1);
+frozen_bits = zeros(size(frozen_indices, 1), 1);
 
 sc_count = 0;
 lsc_count = 0;
